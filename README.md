@@ -15,6 +15,32 @@ The B2 story here is **write amplification on a data-heavy workload**: `raw + de
 - A curation dashboard, a full-bucket File Explorer, and drag-and-drop Upload (stage a raw corpus into B2), all on a FastAPI + Next.js foundation with strict layered architecture and structural tests
 - Agent-optimized docs — your AI coding agent can read the repo and start contributing immediately
 
+## What it looks like
+
+**Dashboard** — curation metrics (total runs, documents processed and removed, PII spans redacted, bytes written to B2), a per-stage curation funnel, and a recent-runs table.
+
+![Dashboard with curation metrics, per-stage funnel, and recent runs](docs/images/dashboard.png)
+
+**Curation Runs** — every multi-stage run listed with its status, source, documents in → out, bytes written to B2, and creation time.
+
+![Curation Runs list with status, source, docs in/out, and bytes written](docs/images/runs.png)
+
+**Run detail** — a single run's configuration and full stage lineage (raw → deduplicated → quality-filtered → PII-redacted), with per-stage documents, PII spans, shards, and bytes.
+
+![Run detail showing configuration and per-stage lineage](docs/images/run-detail.png)
+
+**Corpus Explorer** — browse a run's curated shards by pipeline stage, scoped to the app's own `nemo-curator/` B2 prefix, with per-shard preview and download.
+
+![Corpus Explorer listing PII-redacted shards for a run](docs/images/corpus-explorer.png)
+
+**Document preview** — open any shard to inspect the first curated JSONL documents inline.
+
+![Document preview dialog showing curated JSONL documents](docs/images/document-preview.png)
+
+**Upload** — drag-and-drop a raw corpus into B2 to stage it as a run source.
+
+![Upload page with a drag-and-drop dropzone](docs/images/upload.png)
+
 ## Agent-First Architecture
 
 This repo is optimized for coding agents. The structure follows the principle that **repository knowledge is the system of record**. Anything an agent can't access in-context doesn't exist — so everything it needs to reason about the codebase is versioned, co-located, and discoverable from the repo itself.
