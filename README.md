@@ -1,30 +1,23 @@
-<!-- last_verified: 2026-07-29 -->
+<!-- last_verified: 2026-07-31 -->
 # NeMo Curator Training Data
 
-Stop wiring boilerplate and start building. This open-source starter kit gives vibe coders and AI coding agents a production-ready foundation — a full-stack TypeScript + Python template with a pre-built dashboard UI, file upload system, and **[Backblaze B2](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-nemo-curator-training-data)** cloud storage already integrated. Save thousands of tokens on setup prompts, skip the "build me a dashboard from scratch" loop, and go straight to building your app's unique features.
+Curate LLM pretraining / fine-tuning corpora with [NVIDIA NeMo Curator](https://github.com/NVIDIA/NeMo-Curator) and keep every stage versioned on **[Backblaze B2](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-nemo-curator-training-data)**.
+
+Point the app at a raw text dump (web crawl, scraped docs — the demo ships a tiny synthetic one, but the design targets multi-GB) and run it through a multi-stage curation pipeline — **deduplicate → quality-filter → PII-redact**. Each stage writes its own versioned, sharded JSONL set to B2, and a per-run `manifest.json` tracks lineage and per-stage stats. The output is an audit-ready, lineage-tracked corpus that a downstream training job pulls straight from B2.
+
+The B2 story here is **write amplification on a data-heavy workload**: `raw + deduped + filtered + redacted` = up to 4× copies of the corpus land in B2, all via the **S3-compatible API** with a custom user-agent and standardized `B2_*` env vars. There is no second API key — NeMo Curator is local OSS, so you only need B2 credentials.
 
 **What you get out of the box:**
-- Full-stack dashboard UI (Next.js 16 + React 19 + Tailwind v4 + shadcn/ui)
-- File upload with drag-and-drop, progress tracking, and metadata extraction
-- File browser with preview, download, and delete
-- FastAPI backend with strict layered architecture and structural tests
+- Curation runs — create, configure, run, inspect, edit, and delete a multi-stage pipeline over a raw corpus (the primary entity)
+- Deduplication, quality filtering, and PII redaction — each a NeMo Curator stage whose output is a separately versioned, sharded JSONL set in B2
+- Lineage & versioned B2 stages — a per-run manifest tracks docs-in/out and bytes written per stage (the write-amplification story)
+- Corpus Explorer — browse a run's curated shards by stage, scoped to the app's own B2 prefix, with document preview and download
+- A curation dashboard, a full-bucket File Explorer, and drag-and-drop Upload (stage a raw corpus into B2), all on a FastAPI + Next.js foundation with strict layered architecture and structural tests
 - Agent-optimized docs — your AI coding agent can read the repo and start contributing immediately
-
-## What it looks like
-
-**Dashboard** — stats, upload activity, and recent uploads at a glance:
-
-![Dashboard view showing stat cards, upload activity chart, and recent uploads table](docs/images/b2-starterkit-dashboard1.png)
-
-**File browser** — tree view with preview, download, and delete:
-
-![File browser view showing a tree of files with hover actions](docs/images/b2-starterkit-fileview2.png)
 
 ## Agent-First Architecture
 
-This repo is optimized for coding agents. Use the template, point your agent at it, and start building.
-
-The structure follows the principle that **repository knowledge is the system of record**. Anything an agent can't access in-context doesn't exist — so everything it needs to reason about the codebase is versioned, co-located, and discoverable from the repo itself.
+This repo is optimized for coding agents. The structure follows the principle that **repository knowledge is the system of record**. Anything an agent can't access in-context doesn't exist — so everything it needs to reason about the codebase is versioned, co-located, and discoverable from the repo itself.
 
 ### How it works
 
@@ -54,8 +47,8 @@ docs/
 | Enforce invariants mechanically | Structural tests + ruff + ESLint verify boundaries |
 | DRY documentation | Each fact lives in one place; no redundant files to drift |
 | Strict layered architecture | `types -> config -> repo -> service -> runtime`, enforced by tests |
-| Prefer boring, composable libraries | stdlib logging over frameworks, Pydantic over ad-hoc validation |
-| Contain external SDKs | `boto3` only in `repo/` layer — verified by structural test |
+| Contain external SDKs | `boto3` and `nemo_curator` only in `repo/` — verified by structural test |
+| Keep the build fast and green | The heavy curation engine is split out of the default lock (see below) |
 | Keep files agent-sized | 300-line limit per file, enforced by test |
 | Docs updated with code | Same-PR requirement prevents documentation rot |
 | Structured observability | JSON logging, `/metrics` endpoint, request tracing |
@@ -82,17 +75,6 @@ IPv6 (many containers) is not treated as a failure — the IPv4 probe decides.
 
 ### Start a new project
 
-**Option 1: GitHub Template (recommended)**
-
-Click the green **"Use this template"** button at the top of this repo, name your project, then:
-
-```bash
-git clone https://github.com/yourorg/my-cool-app.git
-cd my-cool-app
-```
-
-**Option 2: Clone and reinitialize**
-
 ```bash
 git clone https://github.com/backblaze-b2-samples/nemo-curator-training-data.git my-cool-app
 cd my-cool-app
@@ -101,8 +83,6 @@ git init
 git add .
 git commit -m "Initial commit from nemo-curator-training-data"
 ```
-
-Either way you get a clean project with no upstream history — ready to push to your own repo and point your agent at it.
 
 ### Setup
 
@@ -126,22 +106,47 @@ overwrites an existing `.env`.
 
 Open `.env` in your editor and keep it visible. Then head to the [Backblaze B2 dashboard](https://secure.backblaze.com/b2_buckets.htm?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-nemo-curator-training-data) and:
 
-1. **Create a bucket.** B2 will show two values — paste each into `.env`:
+1. **Create a bucket.** Paste its details into `.env`:
    - **Bucket Unique Name** → `B2_BUCKET_NAME`
-   - **Endpoint** → `B2_ENDPOINT`
+   - The **region** portion of the bucket's endpoint (e.g. `us-west-004`) → `B2_REGION`. The app derives the full S3 endpoint from the region as `https://s3.<B2_REGION>.backblazeb2.com`, so you never set a full endpoint URL.
 2. **Create an application key** with `Read and Write` permission. B2 will show two values — paste each into `.env`:
-   - **keyID** → `B2_KEY_ID`
+   - **keyID** → `B2_APPLICATION_KEY_ID`
    - **applicationKey** → `B2_APPLICATION_KEY` *(only shown once — paste it now)*
 
-> Want a walkthrough? See the docs for [creating a bucket](https://www.backblaze.com/docs/cloud-storage-create-and-manage-buckets) and [creating app keys](https://www.backblaze.com/docs/cloud-storage-create-and-manage-app-keys).
+> Want a walkthrough? See the docs for [creating a bucket](https://www.backblaze.com/docs/cloud-storage-create-and-manage-buckets?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-nemo-curator-training-data) and [creating app keys](https://www.backblaze.com/docs/cloud-storage-create-and-manage-app-keys?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-nemo-curator-training-data).
 
-**3. Run it**
+**3. (Optional but required to run a curation) Install the curation engine**
+
+The app **boots, serves the UI, and browses B2 without this step** — you can create runs and explore the dashboard. But *executing* a curation run needs NVIDIA NeMo Curator, which is deliberately **split out of the default install**:
+
+```bash
+services/api/.venv/bin/pip install -r services/api/requirements-curator.txt
+```
+
+This installs NeMo Curator, spaCy + Presidio, Dask, and the `en_core_web_sm`
+spaCy model (pinned to a reproducible release wheel — no separate
+`spacy download` step). **Why the split?** NeMo Curator's dependency tree (Dask,
+spaCy + Presidio, fasttext, justext, torch, …) is heavy and slow to resolve on
+macOS arm64, so keeping it out of `requirements.lock` lets `pnpm run setup` and
+the credential-free `pnpm verify` gate stay fast and green. `repo/curator.py`
+lazy-imports `nemo_curator` inside its run function, so **without the engine the
+app still runs and browses, and only `POST /runs/execute` fails the run** with a
+clear message: *"curation engine not installed — run `pip install -r
+services/api/requirements-curator.txt`"*. The engine is heavy to resolve locally;
+a native `linux/arm64` container is an acceptable install path if macOS
+resolution fails.
+
+**4. Run it**
 
 ```bash
 pnpm dev
 ```
 
-That's it. Frontend at `localhost:3000`, API at `localhost:8000`. Upload a file and see it working. Interactive API docs (Swagger UI) are at `localhost:8000/docs`, with ReDoc at `/redoc`.
+That's it. Frontend at `localhost:3000`, API at `localhost:8000`. Create a run on
+the **Runs** page (the "Demo corpus (bundled)" source needs no external data),
+click **Run pipeline**, then watch the stages stream sharded JSONL into B2 and
+browse them in the **Corpus Explorer**. Interactive API docs (Swagger UI) are at
+`localhost:8000/docs`, with ReDoc at `/redoc`.
 
 `pnpm dev` runs the preflight check first — it catches the common setup gotchas (wrong Node/Python version, missing venv, missing or placeholder `.env`, ports already taken) and tells you exactly how to fix each one. Run it standalone any time with `pnpm run doctor`.
 
@@ -150,36 +155,35 @@ That's it. Frontend at `localhost:3000`, API at `localhost:8000`. Upload a file 
 When you adapt this kit for a new app, keep the shared scaffolding and only swap out what's app-specific:
 
 - **Keep** the UI kit (`apps/web/src/components/ui/` + design tokens in `globals.css` + `/design`).
-- **Keep** the File Explorer (`/files`) and Upload (`/upload`) pages and their sidebar nav entries — they're the reusable B2-backed surface.
-- **Adapt** the Dashboard (`/`) to your use case — replace the default stats, chart, and recent uploads with metrics that reflect what your app actually does.
-- **Rebrand** by editing a single file: `apps/web/src/lib/app-config.ts` holds the app name and description (`APP_NAME`, `APP_DESCRIPTION`). Changing them there updates the page title, sidebar, and breadcrumb everywhere — no other files to touch.
+- **Keep** the File Explorer (`/files`) and Upload (`/upload`) pages and their sidebar nav entries — they're the reusable B2-backed surface. Upload doubles as the way to stage a raw corpus into B2 for the `Uploaded B2 prefix` run source.
+- **Adapt** the Dashboard (`/`) to your use case — this app already replaces the default file stats with corpus-curation metrics.
+- **Rebrand** by editing a single file: `apps/web/src/lib/app-config.ts` holds the app name and description (`APP_NAME`, `APP_DESCRIPTION`).
 
 Full contract and rationale: [AGENTS.md §2 — Building on This Starter Kit](AGENTS.md#2-building-on-this-starter-kit).
 
 ## Core Features
 
-- [File Upload](docs/features/file-upload.md) — drag-and-drop upload with real-time progress
-- [File Browser](docs/features/file-browser.md) — list, preview, download, delete files
-- [Dashboard](docs/features/dashboard.md) — stats cards, upload chart, recent uploads
-- [Metadata Extraction](docs/features/metadata-extraction.md) — image dimensions, EXIF, PDF info, checksums
+- [Curation Runs](docs/features/curation-runs.md) — create, configure, run, inspect, edit, and delete a multi-stage curation pipeline (the primary entity)
+- [Deduplication](docs/features/deduplication.md) — NeMo Curator exact dedup removes duplicate documents; deduped shards written to B2
+- [Quality Filtering](docs/features/quality-filtering.md) — heuristic filters (word count, mean word length, symbol ratio, non-alpha ratio, repeated lines) prune low-quality docs into a separate versioned stage
+- [PII Redaction](docs/features/pii-redaction.md) — Presidio-backed detection + redaction of emails, phones, names, SSNs, cards, and IPs over spaCy `en_core_web_sm`
+- [Lineage & Versioned B2 Stages](docs/features/lineage-and-b2-layout.md) — every stage is its own versioned sharded set under the run's prefix; the manifest tracks lineage + bytes written (the write-amplification story)
+- [Corpus Explorer](docs/features/corpus-explorer.md) — browse a run's curated shards by stage, scoped to the app's B2 prefix, with document preview and download
+- [Dashboard](docs/features/dashboard.md) — total runs, documents processed/removed, PII spans redacted, and total bytes written to B2, plus a per-stage funnel and recent-runs table
+- [File Upload](docs/features/file-upload.md) — drag-and-drop upload (inherited starter surface; stages a raw corpus into B2)
+- [File Browser](docs/features/file-browser.md) — full-bucket list, preview, download, delete (inherited starter surface)
+- [Metadata Extraction](docs/features/metadata-extraction.md) — inherited starter capability (generic upload metadata), not a curation feature
 - [Design System](docs/design-system.md) — tokens, primitives, AI elements, the blaze generating loader, and inline `ErrorState` / `EmptyState` patterns. Live preview at `/design`.
-- Inline error handling — fetch failures surface *what's wrong* (API offline, 401, 5xx) and offer a Retry, instead of silently rendering empty state.
-- Single-source config — one `.env` at the repo root powers both API and web app, validated at startup so misconfig fails fast with a readable message.
-- Centralized data layer — every fetch goes through TanStack Query hooks in `apps/web/src/lib/queries.ts`; cache invalidation is one call after a mutation.
-- Checked API contract — `docs/api/openapi.json` plus `pnpm contract:check` catch FastAPI/client route drift.
-- Structural tests — verify layering rules, import boundaries, SDK containment, file size limits
-- Structured JSON logging — every request traced with `request_id` and timing
-- `/health` endpoint — B2 connectivity check
-- `/metrics` endpoint — Prometheus-format counters (request count, latency, uploads)
-- `/docs` + `/redoc` — auto-generated interactive API docs (toggle off in prod with `ENABLE_DOCS=false`)
-- Per-IP rate limiting and magic-byte upload validation — see [SECURITY.md](docs/SECURITY.md)
+
+Plus the reusable starter plumbing: inline error handling with retry, single-source `.env` config validated at startup, a centralized TanStack Query data layer, a checked API contract (`docs/api/openapi.json` + `pnpm contract:check`), structural tests, structured JSON logging, `/health` and `/metrics` endpoints, `/docs` + `/redoc`, and per-IP rate limiting — see [SECURITY.md](docs/SECURITY.md).
 
 ## Tech Stack
 
 - TypeScript, Next.js 16, React 19, Tailwind v4, shadcn/ui, Recharts
 - TanStack Query — caching, dedup, retry, stale-while-revalidate for every fetch
-- Python 3.11+, FastAPI, boto3, Pydantic v2, Pillow, PyPDF2
-- Backblaze B2 (S3-compatible object storage)
+- Python 3.11+, FastAPI, boto3, Pydantic v2, Pillow, PyPDF2 (light API stack, installed by `pnpm run setup`)
+- **NVIDIA NeMo Curator** + Dask, spaCy `en_core_web_sm`, Presidio (`presidio-analyzer` / `presidio-anonymizer`) — the curation engine, installed on demand from `services/api/requirements-curator.txt`
+- Backblaze B2 (S3-compatible object storage) — the sole data store; no application database
 - pnpm workspaces (monorepo)
 
 ## Commands
@@ -207,20 +211,16 @@ Full contract and rationale: [AGENTS.md §2 — Building on This Starter Kit](AG
 | `pnpm test:e2e` | Playwright E2E smoke tests (run `pnpm --filter @nemo-curator-training-data/web exec playwright install chromium` once first) |
 
 Run `pnpm run setup` once before local development, and rerun it after pulling
-dependency changes. It installs workspace dependencies from `pnpm-lock.yaml`
-and API dependencies from `services/api/requirements.lock`. If you add a Node
-dependency yourself, run `pnpm install` to refresh `pnpm-lock.yaml`; for an API
-dependency, follow the reviewed refresh workflow in
+dependency changes. It installs the **light API stack** — the curation engine is
+installed separately (see Setup step 3). If you add a Node dependency yourself,
+run `pnpm install` to refresh `pnpm-lock.yaml`; for an API dependency, follow the
+reviewed refresh workflow in
 [docs/dev-workflows.md](docs/dev-workflows.md#python-dependency-updates). Run
-`pnpm verify` before opening a PR; it needs
-`services/api/.venv` from setup. Run `pnpm verify:full` when you can start the
-local app stack and browser tests: `.env` must contain real B2 values, local
-server binding must be permitted, Playwright's Chromium browser must be
-installed, and port 3000 must be free (or already serving this app). Playwright
-waits on `http://localhost:3000`,
-but `next dev` falls back to the next free port when 3000 is taken — so an
-unrelated process on 3000 makes the E2E run time out. The API starts at
-`localhost:8000` or the next free port chosen by `scripts/dev.sh`.
+`pnpm verify` before opening a PR; it needs `services/api/.venv` from setup but
+neither B2 credentials nor the curation engine. Run `pnpm verify:full` when you
+can start the local app stack and browser tests: `.env` must contain real B2
+values, local server binding must be permitted, Playwright's Chromium browser
+must be installed, and port 3000 must be free (or already serving this app).
 
 `pnpm verify` needs neither B2 credentials nor a browser. For parallel agents,
 use one Git worktree per verification run as documented in [the verification
@@ -233,8 +233,8 @@ hooks.
 | Doc | Purpose |
 |-----|---------|
 | [AGENTS.md](AGENTS.md) | Agent table of contents — start here |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System layout, layering, data flows |
-| [docs/features/](docs/features/) | Feature docs (upload, browser, dashboard, metadata) |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System layout, layering, data flows, the `nemo-curator/` B2 layout |
+| [docs/features/](docs/features/) | Feature docs (curation runs, dedup, quality, PII, lineage, corpus explorer, plus inherited upload/browser/dashboard/metadata) |
 | [docs/design-system.md](docs/design-system.md) | Design tokens, primitives, AI elements, loader, error/empty states |
 | [docs/app-workflows.md](docs/app-workflows.md) | User journeys |
 | [docs/dev-workflows.md](docs/dev-workflows.md) | Engineering workflows and testing |

@@ -1,5 +1,12 @@
-<!-- last_verified: 2026-07-28 -->
+<!-- last_verified: 2026-07-31 -->
 # Feature: Metadata Extraction
+
+> **Inherited starter capability, not a curation feature.** This is the
+> vibe-coding-starter-kit's generic upload-metadata path (image dimensions/EXIF,
+> PDF info, checksums), kept because it is harmless and ripping it out would
+> churn the contract tests. It has nothing to do with the NeMo Curator
+> dedup/quality/PII pipeline — for that, see [Curation Runs](curation-runs.md).
+> It is intentionally left off the README's curation feature headline.
 
 ## Purpose
 Extract rich metadata from uploaded files and surface it both at upload time and for already-stored objects.
