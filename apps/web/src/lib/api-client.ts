@@ -1,15 +1,24 @@
 import type {
+  CreateRunRequest,
   DailyUploadCount,
+  DocumentPreview,
   FileMetadata,
   FileMetadataDetail,
   FileUploadResponse,
+  RunManifest,
+  RunStats,
+  RunSummary,
+  ShardDownload,
+  ShardList,
+  StageName,
+  UpdateRunRequest,
   UploadStats,
-} from "@vibe-coding-starter-kit/shared";
+} from "@nemo-curator-training-data/shared";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type ApiClientRoute = {
-  method: "delete" | "get" | "post";
+  method: "delete" | "get" | "patch" | "post";
   path: string;
 };
 
@@ -28,6 +37,16 @@ export const API_CLIENT_ROUTES = {
   legacyFileMetadata: { method: "get", path: "/files/{key}" },
   legacyFileDelete: { method: "delete", path: "/files/{key}" },
   upload: { method: "post", path: "/upload" },
+  runs: { method: "get", path: "/runs" },
+  createRun: { method: "post", path: "/runs" },
+  runDetail: { method: "get", path: "/runs/detail" },
+  updateRun: { method: "patch", path: "/runs" },
+  deleteRun: { method: "delete", path: "/runs" },
+  executeRun: { method: "post", path: "/runs/execute" },
+  runShards: { method: "get", path: "/runs/shards" },
+  runDocument: { method: "get", path: "/runs/document" },
+  runShardDownload: { method: "get", path: "/runs/shard-download" },
+  runStats: { method: "get", path: "/runs/stats" },
 } as const satisfies Record<string, ApiClientRoute>;
 
 /** Typed API error with HTTP status code for caller-side branching. */
@@ -270,4 +289,93 @@ export function uploadFile(
     );
     xhr.send(formData);
   });
+}
+
+// --- Curation runs ---------------------------------------------------------
+function jsonBody(method: string, body?: unknown): RequestInit {
+  return {
+    method,
+    headers: { "Content-Type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  };
+}
+
+function runIdQuery(runId: string): string {
+  if (runId.length === 0) throw new ApiError("run_id is required", 400);
+  return new URLSearchParams({ run_id: runId }).toString();
+}
+
+export async function getRuns() {
+  return apiFetch<RunSummary[]>(API_CLIENT_ROUTES.runs.path);
+}
+
+export async function getRunStats() {
+  return apiFetch<RunStats>(API_CLIENT_ROUTES.runStats.path);
+}
+
+export async function getRunDetail(runId: string) {
+  return apiFetch<RunManifest>(
+    `${API_CLIENT_ROUTES.runDetail.path}?${runIdQuery(runId)}`
+  );
+}
+
+export async function createRun(req: CreateRunRequest) {
+  return apiFetch<RunManifest>(
+    API_CLIENT_ROUTES.createRun.path,
+    jsonBody(API_CLIENT_ROUTES.createRun.method.toUpperCase(), req)
+  );
+}
+
+export async function updateRun(runId: string, req: UpdateRunRequest) {
+  return apiFetch<RunManifest>(
+    `${API_CLIENT_ROUTES.updateRun.path}?${runIdQuery(runId)}`,
+    jsonBody(API_CLIENT_ROUTES.updateRun.method.toUpperCase(), req)
+  );
+}
+
+export async function deleteRun(runId: string) {
+  return apiFetch<{ deleted: number; run_id: string }>(
+    `${API_CLIENT_ROUTES.deleteRun.path}?${runIdQuery(runId)}`,
+    jsonBody(API_CLIENT_ROUTES.deleteRun.method.toUpperCase())
+  );
+}
+
+export async function executeRun(runId: string) {
+  return apiFetch<RunManifest>(
+    `${API_CLIENT_ROUTES.executeRun.path}?${runIdQuery(runId)}`,
+    jsonBody(API_CLIENT_ROUTES.executeRun.method.toUpperCase())
+  );
+}
+
+export async function getRunShards(runId: string, stage: StageName) {
+  const query = new URLSearchParams({ run_id: runId, stage }).toString();
+  return apiFetch<ShardList>(`${API_CLIENT_ROUTES.runShards.path}?${query}`);
+}
+
+export async function getRunDocument(
+  runId: string,
+  stage: StageName,
+  shard: string,
+  limit = 20
+) {
+  const query = new URLSearchParams({
+    run_id: runId,
+    stage,
+    shard,
+    limit: String(limit),
+  }).toString();
+  return apiFetch<DocumentPreview>(
+    `${API_CLIENT_ROUTES.runDocument.path}?${query}`
+  );
+}
+
+export async function getRunShardDownload(
+  runId: string,
+  stage: StageName,
+  shard: string
+) {
+  const query = new URLSearchParams({ run_id: runId, stage, shard }).toString();
+  return apiFetch<ShardDownload>(
+    `${API_CLIENT_ROUTES.runShardDownload.path}?${query}`
+  );
 }

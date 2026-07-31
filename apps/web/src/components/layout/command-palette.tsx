@@ -8,6 +8,8 @@ import {
   Settings,
   Sparkles,
   FileIcon,
+  FlaskConical,
+  Boxes,
   Moon,
   Sun,
 } from "lucide-react";
@@ -37,6 +39,8 @@ interface CommandPaletteProps {
 
 const routes = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Runs", href: "/runs", icon: FlaskConical },
+  { label: "Corpus", href: "/corpus", icon: Boxes },
   { label: "Upload", href: "/upload", icon: Upload },
   { label: "Files", href: "/files", icon: FolderOpen },
   { label: "Settings", href: "/settings", icon: Settings },

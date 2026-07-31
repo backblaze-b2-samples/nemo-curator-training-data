@@ -15,6 +15,24 @@
         "title": "Body_upload_upload_post",
         "type": "object"
       },
+      "CreateRunRequest": {
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/RunConfig"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateRunRequest",
+        "type": "object"
+      },
       "DailyUploadCount": {
         "properties": {
           "date": {
@@ -31,6 +49,53 @@
           "uploads"
         ],
         "title": "DailyUploadCount",
+        "type": "object"
+      },
+      "DocumentPreview": {
+        "properties": {
+          "documents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "returned": {
+            "default": 0,
+            "title": "Returned",
+            "type": "integer"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "shard": {
+            "title": "Shard",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "raw",
+              "deduped",
+              "filtered",
+              "redacted"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run_id",
+          "stage",
+          "shard"
+        ],
+        "title": "DocumentPreview",
         "type": "object"
       },
       "FileMetadata": {
@@ -308,6 +373,35 @@
         "title": "FileUploadResponse",
         "type": "object"
       },
+      "FunnelPoint": {
+        "properties": {
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "raw",
+              "deduped",
+              "filtered",
+              "redacted"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "label",
+          "documents"
+        ],
+        "title": "FunnelPoint",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -319,6 +413,475 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "RunConfig": {
+        "description": "Everything that shapes a run's stages. Edited via the create/edit forms.",
+        "properties": {
+          "dedup_enabled": {
+            "default": true,
+            "title": "Dedup Enabled",
+            "type": "boolean"
+          },
+          "dedup_mode": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "exact_fuzzy"
+            ],
+            "title": "Dedup Mode",
+            "type": "string"
+          },
+          "pii_enabled": {
+            "default": true,
+            "title": "Pii Enabled",
+            "type": "boolean"
+          },
+          "pii_entities": {
+            "items": {
+              "enum": [
+                "EMAIL_ADDRESS",
+                "PHONE_NUMBER",
+                "PERSON",
+                "US_SSN",
+                "CREDIT_CARD",
+                "IP_ADDRESS"
+              ],
+              "type": "string"
+            },
+            "title": "Pii Entities",
+            "type": "array"
+          },
+          "quality_enabled": {
+            "default": true,
+            "title": "Quality Enabled",
+            "type": "boolean"
+          },
+          "quality_preset": {
+            "default": "standard",
+            "enum": [
+              "lenient",
+              "standard",
+              "strict"
+            ],
+            "title": "Quality Preset",
+            "type": "string"
+          },
+          "redaction_mode": {
+            "default": "replace",
+            "enum": [
+              "replace",
+              "mask",
+              "hash"
+            ],
+            "title": "Redaction Mode",
+            "type": "string"
+          },
+          "source": {
+            "default": "demo",
+            "enum": [
+              "demo",
+              "b2_prefix"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "source_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Prefix"
+          }
+        },
+        "title": "RunConfig",
+        "type": "object"
+      },
+      "RunManifest": {
+        "description": "The single source of truth for a run \u2014 persisted as manifest.json in B2.\n\nThere is no application database (B2 is the sole store), so this document\ncarries config, status, lineage, and the write-amplification totals.",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/RunConfig"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "source_docs": {
+            "default": 0,
+            "title": "Source Docs",
+            "type": "integer"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageResult"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_bytes_written": {
+            "default": 0,
+            "title": "Total Bytes Written",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "name",
+          "config",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RunManifest",
+        "type": "object"
+      },
+      "RunStats": {
+        "properties": {
+          "documents_processed": {
+            "title": "Documents Processed",
+            "type": "integer"
+          },
+          "documents_removed": {
+            "title": "Documents Removed",
+            "type": "integer"
+          },
+          "funnel": {
+            "items": {
+              "$ref": "#/components/schemas/FunnelPoint"
+            },
+            "title": "Funnel",
+            "type": "array"
+          },
+          "pii_spans_redacted": {
+            "title": "Pii Spans Redacted",
+            "type": "integer"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "total_bytes_human": {
+            "title": "Total Bytes Human",
+            "type": "string"
+          },
+          "total_bytes_written": {
+            "title": "Total Bytes Written",
+            "type": "integer"
+          },
+          "total_runs": {
+            "title": "Total Runs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_runs",
+          "documents_processed",
+          "documents_removed",
+          "pii_spans_redacted",
+          "total_bytes_written",
+          "total_bytes_human"
+        ],
+        "title": "RunStats",
+        "type": "object"
+      },
+      "RunSummary": {
+        "description": "Compact row for the /runs list and dashboard recent-runs table.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "final_docs": {
+            "title": "Final Docs",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "demo",
+              "b2_prefix"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "source_docs": {
+            "title": "Source Docs",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_bytes_human": {
+            "title": "Total Bytes Human",
+            "type": "string"
+          },
+          "total_bytes_written": {
+            "title": "Total Bytes Written",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "name",
+          "status",
+          "source",
+          "created_at",
+          "updated_at",
+          "source_docs",
+          "final_docs",
+          "total_bytes_written",
+          "total_bytes_human"
+        ],
+        "title": "RunSummary",
+        "type": "object"
+      },
+      "ShardDownload": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "ShardDownload",
+        "type": "object"
+      },
+      "ShardInfo": {
+        "properties": {
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "size_human": {
+            "title": "Size Human",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "filename",
+          "size_bytes",
+          "size_human"
+        ],
+        "title": "ShardInfo",
+        "type": "object"
+      },
+      "ShardList": {
+        "properties": {
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "shards": {
+            "items": {
+              "$ref": "#/components/schemas/ShardInfo"
+            },
+            "title": "Shards",
+            "type": "array"
+          },
+          "stage": {
+            "enum": [
+              "raw",
+              "deduped",
+              "filtered",
+              "redacted"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "stage",
+          "shards"
+        ],
+        "title": "ShardList",
+        "type": "object"
+      },
+      "StageResult": {
+        "description": "Per-stage lineage + stats. Written into the run manifest as each stage\ncompletes so the UI can poll progress.",
+        "properties": {
+          "bytes_written": {
+            "default": 0,
+            "title": "Bytes Written",
+            "type": "integer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "docs_in": {
+            "default": 0,
+            "title": "Docs In",
+            "type": "integer"
+          },
+          "docs_out": {
+            "default": 0,
+            "title": "Docs Out",
+            "type": "integer"
+          },
+          "docs_removed": {
+            "default": 0,
+            "title": "Docs Removed",
+            "type": "integer"
+          },
+          "pii_spans_redacted": {
+            "default": 0,
+            "title": "Pii Spans Redacted",
+            "type": "integer"
+          },
+          "shard_count": {
+            "default": 0,
+            "title": "Shard Count",
+            "type": "integer"
+          },
+          "stage": {
+            "enum": [
+              "raw",
+              "deduped",
+              "filtered",
+              "redacted"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "skipped",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage"
+        ],
+        "title": "StageResult",
+        "type": "object"
+      },
+      "UpdateRunRequest": {
+        "properties": {
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "UpdateRunRequest",
         "type": "object"
       },
       "UploadStats": {
@@ -397,8 +960,8 @@
     }
   },
   "info": {
-    "description": "File upload and management API backed by Backblaze B2",
-    "title": "OSS Starter Kit API",
+    "description": "Multi-stage LLM training-data curation (dedup, quality, PII) with versioned stage outputs on Backblaze B2",
+    "title": "NeMo Curator Training Data API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",
@@ -930,6 +1493,462 @@
         "summary": "Metrics",
         "tags": [
           "metrics"
+        ]
+      }
+    },
+    "/runs": {
+      "delete": {
+        "operationId": "delete_run_endpoint_runs_delete",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Run Endpoint",
+        "tags": [
+          "runs"
+        ]
+      },
+      "get": {
+        "operationId": "list_runs_endpoint_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  },
+                  "title": "Response List Runs Endpoint Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Runs Endpoint",
+        "tags": [
+          "runs"
+        ]
+      },
+      "patch": {
+        "operationId": "update_run_endpoint_runs_patch",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Run Endpoint",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "operationId": "create_run_endpoint_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Run Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/detail": {
+      "get": {
+        "operationId": "run_detail_endpoint_runs_detail_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Detail Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/document": {
+      "get": {
+        "operationId": "run_document_endpoint_runs_document_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": true,
+            "schema": {
+              "enum": [
+                "raw",
+                "deduped",
+                "filtered",
+                "redacted"
+              ],
+              "title": "Stage",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "shard",
+            "required": true,
+            "schema": {
+              "title": "Shard",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Document Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/execute": {
+      "post": {
+        "operationId": "execute_run_endpoint_runs_execute_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute Run Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/shard-download": {
+      "get": {
+        "operationId": "run_shard_download_endpoint_runs_shard_download_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": true,
+            "schema": {
+              "enum": [
+                "raw",
+                "deduped",
+                "filtered",
+                "redacted"
+              ],
+              "title": "Stage",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "shard",
+            "required": true,
+            "schema": {
+              "title": "Shard",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShardDownload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Shard Download Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/shards": {
+      "get": {
+        "operationId": "run_shards_endpoint_runs_shards_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": true,
+            "schema": {
+              "enum": [
+                "raw",
+                "deduped",
+                "filtered",
+                "redacted"
+              ],
+              "title": "Stage",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShardList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Shards Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/stats": {
+      "get": {
+        "operationId": "run_stats_endpoint_runs_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run Stats Endpoint",
+        "tags": [
+          "runs"
         ]
       }
     },

@@ -29,6 +29,8 @@ import { activeUploadLabel } from "@/lib/upload-status";
 // (e.g. "/" -> "Dashboard", "/design" -> "Design System").
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
+  "/runs": "Curation Runs",
+  "/corpus": "Corpus Explorer",
   "/upload": "Upload",
   "/files": "Files",
   "/settings": "Settings",

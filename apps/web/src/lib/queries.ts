@@ -8,19 +8,32 @@ import {
 } from "@tanstack/react-query";
 import {
   ApiError,
+  createRun,
   deleteFile,
+  deleteRun,
+  executeRun,
   getDownloadUrl,
   getFileDetail,
   getFiles,
   getFileStats,
   getHealth,
   getPreviewUrl,
+  getRunDetail,
+  getRunDocument,
+  getRuns,
+  getRunShards,
+  getRunStats,
   getUploadActivity,
+  updateRun,
 } from "@/lib/api-client";
 import type {
+  CreateRunRequest,
   FileMetadata,
   FileMetadataDetail,
-} from "@vibe-coding-starter-kit/shared";
+  RunManifest,
+  StageName,
+  UpdateRunRequest,
+} from "@nemo-curator-training-data/shared";
 
 // Single source of truth for query keys. Keep these tightly scoped so that
 // invalidating "files" doesn't blow away unrelated caches, and so an IDE
@@ -35,6 +48,13 @@ export const qk = {
   preview: (key: string) => [...qk.all, "preview", key] as const,
   detail: (key: string) => [...qk.all, "detail", key] as const,
   health: () => [...qk.all, "health"] as const,
+  runs: () => [...qk.all, "runs"] as const,
+  runStats: () => [...qk.all, "runs", "stats"] as const,
+  runDetail: (runId: string) => [...qk.all, "runs", "detail", runId] as const,
+  runShards: (runId: string, stage: string) =>
+    [...qk.all, "runs", "shards", runId, stage] as const,
+  runDocument: (runId: string, stage: string, shard: string, limit: number) =>
+    [...qk.all, "runs", "document", runId, stage, shard, limit] as const,
 };
 
 export type Health = Awaited<ReturnType<typeof getHealth>>;
@@ -166,6 +186,113 @@ export function useDeleteFile() {
       // activity) against the server in the background.
       dropDeletedFileFromCache(qc, fileKey);
       qc.invalidateQueries({ queryKey: qk.all });
+    },
+  });
+}
+
+// --- Curation runs ---------------------------------------------------------
+export function useRuns({ enabled = true }: QueryGate = {}) {
+  return useQuery({
+    queryKey: qk.runs(),
+    queryFn: getRuns,
+    enabled,
+  });
+}
+
+export function useRunStats({ enabled = true }: QueryGate = {}) {
+  return useQuery({
+    queryKey: qk.runStats(),
+    queryFn: getRunStats,
+    enabled,
+  });
+}
+
+/**
+ * Run detail with self-adjusting polling: while a run is executing the manifest
+ * changes as each stage lands in B2, so poll every 1.5s; once it settles
+ * (completed/failed/pending) stop polling and rely on cache + mutations.
+ */
+export function useRunDetail(runId: string | undefined, { enabled = true }: QueryGate = {}) {
+  return useQuery<RunManifest, ApiError>({
+    queryKey: qk.runDetail(runId ?? ""),
+    queryFn: () => getRunDetail(runId as string),
+    enabled: enabled && !!runId,
+    refetchInterval: (query) =>
+      query.state.data?.status === "running" ? 1500 : false,
+  });
+}
+
+export function useRunShards(
+  runId: string,
+  stage: StageName,
+  { enabled = true }: QueryGate = {}
+) {
+  return useQuery({
+    queryKey: qk.runShards(runId, stage),
+    queryFn: () => getRunShards(runId, stage),
+    enabled,
+  });
+}
+
+export function useRunDocument(
+  runId: string,
+  stage: StageName,
+  shard: string | undefined,
+  limit = 20,
+  { enabled = true }: QueryGate = {}
+) {
+  return useQuery({
+    queryKey: qk.runDocument(runId, stage, shard ?? "", limit),
+    queryFn: () => getRunDocument(runId, stage, shard as string, limit),
+    enabled: enabled && !!shard,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (req: CreateRunRequest) => createRun(req),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.runs() });
+      qc.invalidateQueries({ queryKey: qk.runStats() });
+    },
+  });
+}
+
+export function useUpdateRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, req }: { runId: string; req: UpdateRunRequest }) =>
+      updateRun(runId, req),
+    onSuccess: (_data, { runId }) => {
+      qc.invalidateQueries({ queryKey: qk.runDetail(runId) });
+      qc.invalidateQueries({ queryKey: qk.runs() });
+    },
+  });
+}
+
+export function useDeleteRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => deleteRun(runId),
+    onSuccess: (_data, runId) => {
+      qc.removeQueries({ queryKey: qk.runDetail(runId) });
+      qc.invalidateQueries({ queryKey: qk.runs() });
+      qc.invalidateQueries({ queryKey: qk.runStats() });
+    },
+  });
+}
+
+export function useExecuteRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => executeRun(runId),
+    onSuccess: (data) => {
+      // Seed the detail cache with the "running" manifest so the detail view
+      // starts polling immediately, then reconcile the list.
+      qc.setQueryData(qk.runDetail(data.run_id), data);
+      qc.invalidateQueries({ queryKey: qk.runs() });
     },
   });
 }

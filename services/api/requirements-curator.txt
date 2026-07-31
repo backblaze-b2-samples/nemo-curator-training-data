@@ -1,0 +1,33 @@
+# NeMo Curator engine — installed ON DEMAND to actually execute curation runs.
+#
+# This file is deliberately NOT part of the light `requirements.txt` /
+# `requirements.lock` that `pnpm run setup` installs, so cold-start setup and the
+# credential-free `pnpm verify` gate stay fast and green without resolving this
+# heavy dependency tree. `repo/curator.py` lazy-imports `nemo_curator` inside its
+# run function, so the app boots, exports its OpenAPI contract, runs structural
+# tests, and serves every read route with only the light stack present. Executing
+# a run without this engine fails the run with a clear install hint (surfaced in
+# the UI) rather than crashing.
+#
+# Install:  services/api/.venv/bin/pip install -r services/api/requirements-curator.txt
+#
+# Heavy and slow to resolve on macOS arm64 — a native linux/arm64 container is an
+# acceptable install path if local resolution fails. The GPU (RAPIDS / dask-cuda)
+# path additionally needs NVIDIA's index:
+#   --extra-index-url https://pypi.nvidia.com
+# The default demo runs on CPU (plain Dask LocalCluster); GPU is autodetected.
+#
+# Pin every ML dependency — an unpinned torch/spaCy/nemo-curator is a false-green
+# that boots fine but breaks the marquee curation path only on an end-to-end run.
+
+nemo-curator[cpu]==0.6.0
+dask[complete]==2024.7.1
+distributed==2024.7.1
+spacy==3.7.5
+presidio-analyzer==2.2.355
+presidio-anonymizer==2.2.355
+torch==2.4.1
+
+# spaCy English model used by Presidio NER, pinned to a reproducible release
+# wheel URL rather than a post-install `spacy download` step.
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl

@@ -1,3 +1,3 @@
 // Single source of truth for app identity. Rename here to rebrand a clone of this starter.
-export const APP_NAME = "OSS Starter Kit";
-export const APP_DESCRIPTION = "File management dashboard powered by Backblaze B2";
+export const APP_NAME = "NeMo Curator Training Data";
+export const APP_DESCRIPTION = "Curate LLM training corpora with NeMo Curator, versioned on Backblaze B2";

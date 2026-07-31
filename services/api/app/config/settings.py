@@ -2,11 +2,21 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    b2_endpoint: str = "https://s3.us-west-004.backblazeb2.com"
-    b2_key_id: str = ""
+    # Standardized B2_* names (see docs/features and .env.example). The S3
+    # endpoint is derived from the region, so there is no separate endpoint var.
+    b2_application_key_id: str = ""
     b2_application_key: str = ""
     b2_bucket_name: str = ""
-    b2_public_url: str = ""
+    b2_region: str = ""
+    # Optional. Only used to build browser-facing URLs for public buckets; the
+    # app runs fine without it (private-bucket default). Never required at
+    # startup — see main.REQUIRED_B2_SETTINGS.
+    b2_public_url_base: str = ""
+
+    # App-owned B2 key prefix for curation runs (manifests + stage shards). All
+    # of this sample's writes/reads/deletes are scoped under it; the full-bucket
+    # /files explorer is unaffected.
+    app_prefix: str = "nemo-curator/"
 
     api_port: int = 8000
     # Interactive API docs (/docs, /redoc, /openapi.json). On by default for
@@ -66,6 +76,16 @@ class Settings(BaseSettings):
     download_count_file: str = ".data/download_count.json"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @property
+    def b2_endpoint(self) -> str:
+        """S3-compatible endpoint derived from the region.
+
+        B2's S3 endpoint is always `https://s3.<region>.backblazeb2.com`, so the
+        region is the single source of truth — no hardcoded region literal and
+        no separate endpoint env var to keep in sync.
+        """
+        return f"https://s3.{self.b2_region}.backblazeb2.com"
 
     @property
     def cors_origins(self) -> list[str]:
