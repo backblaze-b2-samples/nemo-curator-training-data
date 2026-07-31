@@ -31,7 +31,7 @@ Create, configure, run, inspect, edit, and delete a multi-stage NeMo Curator pip
 - Side effects: stage shards written to B2 on execute; manifest + shards deleted on delete (scoped to the run's prefix)
 
 ## Flow
-- **create** → `POST /runs` writes a `pending` manifest (no stages executed yet)
+- **create** → `POST /runs` writes a `pending` manifest (no stages executed yet); the detail page reads this as "Not run yet — click Run pipeline to start" rather than zeroed source/byte totals
 - **read** → `GET /runs/detail` returns config, status, per-stage docs-in/out + bytes, lineage
 - **edit** → `PATCH /runs` updates name/config; rejected with 409 if the run is currently executing
 - **run** → `POST /runs/execute` marks the manifest `running`, launches `run_pipeline` in a background thread, and returns immediately; the UI polls `GET /runs/detail` for live per-stage progress
@@ -48,7 +48,8 @@ Create, configure, run, inspect, edit, and delete a multi-stage NeMo Curator pip
 ## UX States
 - Empty: `/runs` shows "No runs yet" with a "New run" button
 - Loading: skeleton list / detail
-- Running: status badge polls; per-stage rows fill in as each stage completes
+- Not run yet: a `pending` run reads "Not run yet — click Run pipeline to start" and its four stage cards sit `pending`
+- Running: status badge polls; the currently-computing stage shows a `running` badge with an animated spinner, and per-stage rows fill in as each stage completes
 - Error: failed status badge + the manifest `error` message surfaced on the detail page
 
 ## Verification

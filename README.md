@@ -123,9 +123,10 @@ The app **boots, serves the UI, and browses B2 without this step** — you can c
 services/api/.venv/bin/pip install -r services/api/requirements-curator.txt
 ```
 
-This installs NeMo Curator, spaCy + Presidio, Dask, and the `en_core_web_sm`
+This installs NeMo Curator, spaCy + Presidio, Dask, and the `en_core_web_lg`
 spaCy model (pinned to a reproducible release wheel — no separate
-`spacy download` step). **Why the split?** NeMo Curator's dependency tree (Dask,
+`spacy download` step; `en_core_web_lg` is Presidio's default NER model, so
+pinning it avoids a ~560MB runtime download on the first curation). **Why the split?** NeMo Curator's dependency tree (Dask,
 spaCy + Presidio, fasttext, justext, torch, …) is heavy and slow to resolve on
 macOS arm64, so keeping it out of `requirements.lock` lets `pnpm run setup` and
 the credential-free `pnpm verify` gate stay fast and green. `repo/curator.py`
@@ -166,7 +167,7 @@ Full contract and rationale: [AGENTS.md §2 — Building on This Starter Kit](AG
 - [Curation Runs](docs/features/curation-runs.md) — create, configure, run, inspect, edit, and delete a multi-stage curation pipeline (the primary entity)
 - [Deduplication](docs/features/deduplication.md) — NeMo Curator exact dedup removes duplicate documents; deduped shards written to B2
 - [Quality Filtering](docs/features/quality-filtering.md) — heuristic filters (word count, mean word length, symbol ratio, non-alpha ratio, repeated lines) prune low-quality docs into a separate versioned stage
-- [PII Redaction](docs/features/pii-redaction.md) — Presidio-backed detection + redaction of emails, phones, names, SSNs, cards, and IPs over spaCy `en_core_web_sm`
+- [PII Redaction](docs/features/pii-redaction.md) — Presidio-backed detection + redaction of emails, phones, names, SSNs, cards, and IPs over spaCy `en_core_web_lg`
 - [Lineage & Versioned B2 Stages](docs/features/lineage-and-b2-layout.md) — every stage is its own versioned sharded set under the run's prefix; the manifest tracks lineage + bytes written (the write-amplification story)
 - [Corpus Explorer](docs/features/corpus-explorer.md) — browse a run's curated shards by stage, scoped to the app's B2 prefix, with document preview and download
 - [Dashboard](docs/features/dashboard.md) — total runs, documents processed/removed, PII spans redacted, and total bytes written to B2, plus a per-stage funnel and recent-runs table
@@ -182,7 +183,7 @@ Plus the reusable starter plumbing: inline error handling with retry, single-sou
 - TypeScript, Next.js 16, React 19, Tailwind v4, shadcn/ui, Recharts
 - TanStack Query — caching, dedup, retry, stale-while-revalidate for every fetch
 - Python 3.11+, FastAPI, boto3, Pydantic v2, Pillow, PyPDF2 (light API stack, installed by `pnpm run setup`)
-- **NVIDIA NeMo Curator** + Dask, spaCy `en_core_web_sm`, Presidio (`presidio-analyzer` / `presidio-anonymizer`) — the curation engine, installed on demand from `services/api/requirements-curator.txt`
+- **NVIDIA NeMo Curator** + Dask, spaCy `en_core_web_lg`, Presidio (`presidio-analyzer` / `presidio-anonymizer`) — the curation engine, installed on demand from `services/api/requirements-curator.txt`
 - Backblaze B2 (S3-compatible object storage) — the sole data store; no application database
 - pnpm workspaces (monorepo)
 

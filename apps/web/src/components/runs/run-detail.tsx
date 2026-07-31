@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, FolderOpen, Play } from "lucide-react";
+import { AlertTriangle, FolderOpen, Loader2, Play } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -64,8 +64,18 @@ export function RunDetail({ runId }: { runId: string }) {
             <RunStatusBadge status={run.status} />
           </div>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Created {formatDate(run.created_at)} · {run.source_docs} source
-            documents · {humanizeBytes(run.total_bytes_written)} written to B2
+            {run.status === "pending" ? (
+              <>
+                Created {formatDate(run.created_at)} · Not run yet — click Run
+                pipeline to start
+              </>
+            ) : (
+              <>
+                Created {formatDate(run.created_at)} · {run.source_docs} source
+                documents · {humanizeBytes(run.total_bytes_written)} written to
+                B2
+              </>
+            )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -175,7 +185,12 @@ export function RunDetail({ runId }: { runId: string }) {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{STAGE_LABELS[stageName]}</span>
-                  <Badge variant={STAGE_STATUS_VARIANT[status]}>{status}</Badge>
+                  <Badge variant={STAGE_STATUS_VARIANT[status]}>
+                    {status === "running" && (
+                      <Loader2 aria-hidden="true" className="animate-spin" />
+                    )}
+                    {status}
+                  </Badge>
                 </div>
                 <dl className="space-y-1 text-xs text-muted-foreground tabular-nums">
                   <Row k="Docs in" v={stage?.docs_in ?? 0} />

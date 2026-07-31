@@ -76,3 +76,12 @@ Low-severity polish, left for a follow-up; none blocks the core flow.
 | Custom `FileNotFoundError` shadowed the built-in | Renamed to `FileNotFoundServiceError` |
 | Dropzone accepted any file type client-side | `accept` allow-list mirroring backend `ALLOWED_TYPES` (tested for drift) |
 | No test harness for feature specs | pytest suite across upload, files, activity, errors, validation, rate limit, pagination |
+
+## 2026-07-31 — verify
+
+Nitpicks surfaced by the sample-3-verify UX funnel over the marquee curation flow. None block the first-time-user goal; logged here, not looped on.
+
+- Dashboard → Runs — the Dashboard's "New run" button navigates to `/runs` (the list) instead of opening the create-run dialog, so reaching the create form from the dashboard takes two "New run" clicks (`.local/verify/A/02-runs-list.png`). Make the dashboard CTA open the dialog directly, or relabel it "View runs".
+- Runs list latency — `GET /runs` does O(n) per-run manifest reads, so the Runs page sits on a loading skeleton ~10s once dozens of runs accumulate (measured ~10s at 48 runs; a fresh clone with few runs is fast, and it degrades gracefully) (`.local/verify/B/08-dashboard-after.png`). Summarize/cache run stats (or paginate) so the list is ~O(1). [NEEDS-SOURCE-CHECK: confirmed via API timing, not a screen defect]
+- Quality preset "strict" on the bundled demo — strict prunes the entire 41-doc demo corpus to 0 ("strict preset pruned 39"), yielding an empty curated corpus with no in-UI warning (`.local/verify/C/CN-02-run-detail-completed.png`). Direction is correct (strict > standard) and empty input is handled gracefully; a real multi-GB corpus wouldn't zero out. Consider a "0 documents survived — try a looser preset" hint.
+- PII phone/SSN coverage on the demo — with PHONE_NUMBER enabled, Presidio does not redact the demo's invalid/short fake numbers ("(555) 0188", "555-0199"); the 9 redacted spans are all email/person (`.local/verify/C/CD-redacted-preview-shard1.png`). This is Presidio's correct entity-recognition behaviour (the demo carries no valid phone/SSN), not an app defect; consider seeding the demo corpus with valid-format PII so every selected entity type visibly redacts.

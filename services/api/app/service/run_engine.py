@@ -153,6 +153,14 @@ def run_pipeline(run_id: str) -> None:
         manifest.stages = [stage_map[s] for s in STAGE_ORDER]
         manifest.source_docs = len(raw_docs)
         manifest.total_bytes_written = 0
+
+        # Active (non-skipped) stages in run order. Mark the first "running"
+        # before any work begins so the polling UI shows the currently-computing
+        # stage instead of a wall of "pending"; the marker then advances to the
+        # next active stage as each one completes.
+        active_stages = [s for s in STAGE_ORDER if stage_map[s].status != "skipped"]
+        if active_stages:
+            stage_map[active_stages[0]].status = "running"
         manifest.updated_at = now()
         save(manifest)
 
@@ -169,6 +177,10 @@ def run_pipeline(run_id: str) -> None:
             sr.shard_count = shard_count
             sr.detail = out.detail
             manifest.total_bytes_written += bytes_written
+            # Advance the "running" marker to the next active stage, if any.
+            idx = active_stages.index(out.stage)
+            if idx + 1 < len(active_stages):
+                stage_map[active_stages[idx + 1]].status = "running"
             manifest.updated_at = now()
             save(manifest)
             current_in = len(out.docs)

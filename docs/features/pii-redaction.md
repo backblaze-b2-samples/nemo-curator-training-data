@@ -28,7 +28,7 @@ Detect and redact personally identifiable information (emails, phones, names, SS
 
 ## Flow
 - If `pii_enabled`, the engine first counts PII spans across the incoming documents for the selected entities (`_count_pii_spans`)
-- `PiiModifier(language="en", supported_entities=..., anonymize_action=..., device=backend)` detects and rewrites PII using spaCy `en_core_web_sm` NER under Presidio (CPU)
+- `PiiModifier(language="en", supported_entities=..., anonymize_action=..., device=backend)` detects and rewrites PII using spaCy `en_core_web_lg` NER under Presidio (CPU)
 - `run_engine` shards the redacted docs and streams them to B2, updating the manifest with the span count
 
 ## Edge Cases

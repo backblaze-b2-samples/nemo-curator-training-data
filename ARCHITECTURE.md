@@ -100,7 +100,7 @@ is deliberately kept **out** of the default `requirements.lock`:
   the curation engine.**
 - `services/api/requirements-curator.txt` — the pinned NeMo Curator engine
   (`nemo-curator`, `dask`, `spacy`, `presidio-analyzer`/`-anonymizer`, `torch`,
-  and the `en_core_web_sm` model via a reproducible release-wheel URL). Installed
+  and the `en_core_web_lg` model via a reproducible release-wheel URL). Installed
   on demand to actually run curations.
 
 Every `nemo_curator` import lives **inside** `run_stages` in `repo/curator.py`,

@@ -11,6 +11,11 @@
 #
 # Install:  services/api/.venv/bin/pip install -r services/api/requirements-curator.txt
 #
+# Python: the repo baseline is Python 3.11 (see README; the committed
+# `services/api/.venv` is 3.11). NeMo Curator only supports 3.11 from 0.7.0
+# onward — releases 0.3.0–0.6.0 require `>=3.10,<3.11` and can NEVER resolve on
+# this venv (pip aborts with "requires a different python version"). Pin 0.7.x.
+#
 # Heavy and slow to resolve on macOS arm64 — a native linux/arm64 container is an
 # acceptable install path if local resolution fails. The GPU (RAPIDS / dask-cuda)
 # path additionally needs NVIDIA's index:
@@ -19,15 +24,25 @@
 #
 # Pin every ML dependency — an unpinned torch/spaCy/nemo-curator is a false-green
 # that boots fine but breaks the marquee curation path only on an end-to-end run.
+# The versions below are the set nemo-curator[cpu]==0.7.1 actually resolves to
+# (presidio 2.2.351, dask/distributed 2026.7.1, torch 2.13.0); pinning any of the
+# old 0.6.0-era co-pins here instead makes the resolve unsolvable.
 
-nemo-curator[cpu]==0.6.0
-dask[complete]==2024.7.1
-distributed==2024.7.1
+nemo-curator[cpu]==0.7.1
+dask[complete]==2026.7.1
+distributed==2026.7.1
 spacy==3.7.5
-presidio-analyzer==2.2.355
-presidio-anonymizer==2.2.355
-torch==2.4.1
+presidio-analyzer==2.2.351
+presidio-anonymizer==2.2.351
+torch==2.13.0
 
-# spaCy English model used by Presidio NER, pinned to a reproducible release
-# wheel URL rather than a post-install `spacy download` step.
-en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+# spaCy English model for Presidio NER, pinned to a reproducible release-wheel URL
+# rather than a post-install `spacy download` step. This is the LARGE model on
+# purpose: NeMo Curator's `PiiModifier` builds Presidio's `AnalyzerEngine` with no
+# NLP-engine override, and Presidio's default spaCy model is `en_core_web_lg`
+# (see `_count_pii_spans` too — a bare `AnalyzerEngine()` defaults to lg as well).
+# Pinning the *small* model here did NOT change what runs: Presidio still
+# pip-downloaded ~560MB of `en_core_web_lg` at RUNTIME on the first curation.
+# Pinning lg makes the documented install self-sufficient — no surprise runtime
+# download, and the pinned model is exactly the one Presidio loads.
+en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.1/en_core_web_lg-3.7.1-py3-none-any.whl
